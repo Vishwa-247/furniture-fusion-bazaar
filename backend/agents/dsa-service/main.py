@@ -12,6 +12,13 @@ from pymongo import MongoClient
 from bson import ObjectId
 import motor.motor_asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from backend root
+backend_root = Path(__file__).parent.parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Database connection
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")

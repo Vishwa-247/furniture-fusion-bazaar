@@ -4,6 +4,14 @@ import cv2
 import numpy as np
 import base64
 import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from backend root
+backend_root = Path(__file__).parent.parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

@@ -24,6 +24,13 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from contextlib import asynccontextmanager
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from backend root
+backend_root = Path(__file__).parent.parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, status

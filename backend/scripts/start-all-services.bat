@@ -1,51 +1,61 @@
 @echo off
-echo 🚀 Starting All StudyMate Backend Services...
-echo =============================================
+echo 🚀 Starting All StudyMate Backend Services
+echo ==========================================
 
-REM Get the directory of this script
-set SCRIPT_DIR=%~dp0
+cd /d "%~dp0\.."
+
+REM Check if virtual environment exists
+if not exist "venv\Scripts\activate.bat" (
+    echo ❌ Virtual environment not found!
+    echo Please run: setup.bat
+    pause
+    exit /b 1
+)
+
+REM Activate virtual environment
+call venv\Scripts\activate
+
+REM Check if .env exists
+if not exist ".env" (
+    echo ❌ .env file not found!
+    echo Please copy .env.example to .env and configure it
+    pause
+    exit /b 1
+)
+
+echo ✅ Starting services...
+echo.
+
+REM Start each service in a new window
+start "API Gateway" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd api-gateway && python main.py"
+timeout /t 2 /nobreak >nul
+
+start "Profile Service" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\profile-service && python main.py"
+timeout /t 2 /nobreak >nul
+
+start "Resume Analyzer" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\resume-analyzer && python main.py"
+timeout /t 2 /nobreak >nul
+
+start "Course Generation" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\course-generation && python main.py"
+timeout /t 2 /nobreak >nul
+
+start "Interview Coach" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\interview-coach && python main.py"
+timeout /t 2 /nobreak >nul
+
+start "Emotion Detection" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\emotion-detection && python main.py"
+timeout /t 2 /nobreak >nul
 
 echo.
-echo 🔧 Starting services in sequence...
+echo ✅ All services started!
 echo.
-
-echo 📡 Starting Profile Service on port 8006...
-start "Profile Service" /D "%SCRIPT_DIR%" start-profile-service.bat
-timeout /t 3 /nobreak >nul
-
-echo 📡 Starting Resume Analyzer on port 8003...
-start "Resume Analyzer" /D "%SCRIPT_DIR%" start-resume-analyzer.bat
-timeout /t 3 /nobreak >nul
-
-echo 📡 Starting Course Generation on port 8008...
-start "Course Generation" /D "%SCRIPT_DIR%" start-course-generation.bat
-timeout /t 3 /nobreak >nul
-
-echo 📡 Starting API Gateway on port 8000...
-start "API Gateway" /D "%SCRIPT_DIR%" start-api-gateway.bat
-timeout /t 3 /nobreak >nul
-
+echo 📖 Service URLs:
+echo    - API Gateway: http://localhost:8000
+echo    - Profile Service: http://localhost:8006
+echo    - Resume Analyzer: http://localhost:8003
+echo    - Course Generation: http://localhost:8008
+echo    - Interview Coach: http://localhost:8002
+echo    - Emotion Detection: http://localhost:5000
 echo.
-echo 🎉 All services started successfully!
+echo 📖 API Documentation: http://localhost:8000/docs
 echo.
-echo Service URLs:
-echo 📡 API Gateway: http://localhost:8000
-echo 👤 Profile Service: http://localhost:8006
-echo 📄 Resume Analyzer: http://localhost:8003
-echo 🎓 Course Generation: http://localhost:8008
-echo.
-echo Health Checks:
-echo curl http://localhost:8000/health
-echo curl http://localhost:8006/health
-echo curl http://localhost:8003/health
-echo curl http://localhost:8008/health
-echo.
-echo 📖 API Documentation:
-echo http://localhost:8000/docs (API Gateway)
-echo http://localhost:8006/docs (Profile Service)
-echo http://localhost:8003/docs (Resume Analyzer)
-echo http://localhost:8008/docs (Course Generation)
-echo.
-echo To stop services, close each service window or use Task Manager
-echo =============================================
 pause

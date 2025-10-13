@@ -11,10 +11,13 @@ import docx
 import PyPDF2
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
-# Load environment variables
+# Load environment variables from backend root
 from dotenv import load_dotenv
-load_dotenv()
+backend_root = Path(__file__).parent.parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Add the backend directory to the path for shared module imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))

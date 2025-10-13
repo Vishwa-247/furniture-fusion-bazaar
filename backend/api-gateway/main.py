@@ -7,6 +7,13 @@ import logging
 from typing import Optional
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from backend root folder
+backend_root = Path(__file__).parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

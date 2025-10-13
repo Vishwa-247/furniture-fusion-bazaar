@@ -26,9 +26,12 @@ from groq import Groq
 from pydantic import BaseModel
 
 from supabase import Client, create_client
+from pathlib import Path
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from backend root
+backend_root = Path(__file__).parent.parent.parent
+env_path = backend_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Initialize clients
 supabase_url = os.getenv("SUPABASE_URL")

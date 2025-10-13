@@ -1,5 +1,0 @@
-flask==3.0.0
-flask-cors==4.0.0
-opencv-python==4.8.1.78
-numpy==1.24.3
-# tensorflow==2.15.0  # Uncomment when loading your trained model
