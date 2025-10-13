@@ -37,7 +37,7 @@ security = HTTPBearer()
 AGENT_SERVICES = {
     "resume-analyzer": os.getenv("RESUME_ANALYZER_URL", "http://localhost:8003"),
     "profile-service": os.getenv("PROFILE_SERVICE_URL", "http://localhost:8006"),
-    "course-generation": os.getenv("COURSE_GENERATION_URL", "http://localhost:8007"),  # Updated to match course service port
+    "course-generation": os.getenv("COURSE_GENERATION_URL", "http://localhost:8008"),
     "interview-coach": os.getenv("INTERVIEW_COACH_URL", "http://localhost:8002"),
 }
 
@@ -178,6 +178,11 @@ async def sign_out(user_id: str = Depends(verify_token)):
 async def generate_course(course_data: dict, user_id: str = Depends(verify_token)):
     course_data["user_id"] = user_id
     return await forward_to_agent("course-generation", "/generate", "POST", course_data)
+
+@app.post("/courses/generate-parallel")
+async def generate_course_parallel(course_data: dict):
+    """Generate course with parallel AI agents (Oboe-style)"""
+    return await forward_to_agent("course-generation", "/generate-course-parallel", "POST", course_data)
 
 @app.get("/courses")
 async def get_courses(user_id: str = Depends(verify_token)):

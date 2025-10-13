@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { API_GATEWAY_URL } from '@/configs/environment';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,11 +29,20 @@ const CourseGenerator = () => {
     setIsGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-course-parallel', {
-        body: { topic: topic.trim(), userId: user.id }
+      const response = await fetch(`${API_GATEWAY_URL}/courses/generate-parallel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ topic: topic.trim(), userId: user.id })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate course');
+      }
+
+      const data = await response.json();
 
       toast.success("Course generation started!", {
         description: "Your course will be ready in ~40 seconds"
