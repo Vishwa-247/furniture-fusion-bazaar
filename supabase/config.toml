@@ -1,0 +1,4 @@
+project_id = "jwmsgrodliegekbrhvgt"
+
+[functions.generate-feedback-suggestions]
+verify_jwt = false
