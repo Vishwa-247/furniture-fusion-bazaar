@@ -333,6 +333,79 @@ def generate_star_recommendations(star_scores: List[Dict], star_examples: List[D
     
     return recommendations
 
+def validate_skills_for_role(skills: List[str], job_role: str) -> Dict[str, Any]:
+    """
+    Validate if extracted skills are relevant for the job role
+    Returns: relevance_score (0-100), matched_skills, irrelevant_skills
+    """
+    role_skill_categories = {
+        'frontend developer': {
+            'required': ['react', 'javascript', 'html', 'css', 'typescript', 'vue', 'angular'],
+            'preferred': ['redux', 'webpack', 'sass', 'tailwind', 'next.js', 'responsive'],
+            'irrelevant': ['python', 'django', 'flask', 'tensorflow', 'machine learning', 'data science', 'pandas', 'numpy', 'deep learning']
+        },
+        'backend developer': {
+            'required': ['python', 'java', 'node.js', 'api', 'database', 'sql', 'rest'],
+            'preferred': ['microservices', 'docker', 'aws', 'redis', 'postgresql', 'mongodb'],
+            'irrelevant': ['react', 'vue', 'angular', 'html', 'css', 'responsive design', 'ui/ux']
+        },
+        'full stack developer': {
+            'required': ['javascript', 'python', 'node.js', 'react', 'api', 'database', 'sql'],
+            'preferred': ['typescript', 'mongodb', 'docker', 'aws', 'git', 'ci/cd'],
+            'irrelevant': ['machine learning', 'data science', 'tensorflow', 'deep learning']
+        },
+        'data scientist': {
+            'required': ['python', 'machine learning', 'statistics', 'sql', 'pandas', 'numpy'],
+            'preferred': ['tensorflow', 'pytorch', 'deep learning', 'nlp', 'tableau', 'scikit-learn'],
+            'irrelevant': ['react', 'html', 'css', 'javascript', 'vue', 'angular', 'responsive design', 'ui/ux']
+        },
+        'devops engineer': {
+            'required': ['docker', 'kubernetes', 'jenkins', 'ci/cd', 'aws', 'linux', 'scripting'],
+            'preferred': ['terraform', 'ansible', 'monitoring', 'prometheus', 'grafana'],
+            'irrelevant': ['react', 'vue', 'angular', 'ui/ux', 'responsive design']
+        },
+    }
+    
+    role_data = role_skill_categories.get(job_role.lower(), {
+        'required': [],
+        'preferred': [],
+        'irrelevant': []
+    })
+    
+    skills_lower = [s.lower() for s in skills]
+    
+    matched_required = [s for s in role_data['required'] if s in ' '.join(skills_lower)]
+    matched_preferred = [s for s in role_data['preferred'] if s in ' '.join(skills_lower)]
+    found_irrelevant = [s for s in role_data['irrelevant'] if s in ' '.join(skills_lower)]
+    
+    # Calculate relevance score
+    total_required = len(role_data['required'])
+    total_preferred = len(role_data['preferred'])
+    
+    if total_required > 0:
+        required_match_percent = (len(matched_required) / total_required) * 100
+    else:
+        required_match_percent = 50  # Neutral if no required skills defined
+    
+    if total_preferred > 0:
+        preferred_match_percent = (len(matched_preferred) / total_preferred) * 100
+    else:
+        preferred_match_percent = 0
+    
+    # Penalty for irrelevant skills
+    irrelevant_penalty = min(len(found_irrelevant) * 5, 30)  # Max 30% penalty
+    
+    relevance_score = (required_match_percent * 0.7 + preferred_match_percent * 0.3) - irrelevant_penalty
+    relevance_score = max(0, min(100, relevance_score))  # Clamp between 0-100
+    
+    return {
+        'relevance_score': round(relevance_score, 1),
+        'matched_required': matched_required,
+        'matched_preferred': matched_preferred,
+        'irrelevant_skills': found_irrelevant,
+        'has_mismatch': len(found_irrelevant) > 2
+    }
+
 def extract_keywords_from_job_description(job_description: str, job_role: str) -> List[str]:
     """Extract relevant keywords from job description"""
     if not job_description or len(job_description.strip()) < 20:
@@ -443,10 +516,18 @@ async def analyze_with_groq(resume_text: str, job_role: str, job_description: st
     - ATS score should be based on formatting, keywords, and structure - be realistic
     - Don't be generous - most resumes should score 40-70, not 70-90
     
+    CRITICAL SCORING EXAMPLES:
+    ❌ WRONG: Frontend Developer resume for Data Scientist role = 75% (TOO HIGH)
+    ✅ CORRECT: Frontend Developer resume for Data Scientist role = 30-40% (LOW - no relevant experience)
+    
+    ❌ WRONG: Student with projects but no work experience = 80% (TOO HIGH)  
+    ✅ CORRECT: Student with projects but no work experience = 50-60% (MEDIUM - potential but unproven)
+    
     RELEVANCE CHECK:
     - Does the candidate have experience in {job_role}? If NO, score should be below 50
     - Do the skills match what a {job_role} needs? If NO, score should be below 60
     - Is there relevant education or projects? If NO, reduce score by 10-20 points
+    - Are there irrelevant skills (e.g., React skills for Data Scientist)? Penalize heavily
     
     Provide analysis in JSON format:
     {{
@@ -516,20 +597,35 @@ async def analyze_with_groq(resume_text: str, job_role: str, job_description: st
         keyword_analysis = analyze_keyword_matching(resume_text, job_description, job_role)
         print(f"✅ Keyword analysis complete. Matching: {len(keyword_analysis['matching_keywords'])}, Missing: {len(keyword_analysis['missing_keywords'])}")
         
+        # NEW: Validate skills for role relevance
+        print("🎯 Validating skills for role...")
+        all_text = resume_text.lower()
+        skill_validation = validate_skills_for_role([resume_text], job_role)
+        print(f"✅ Skill validation complete. Relevance: {skill_validation['relevance_score']}%")
+        if skill_validation['irrelevant_skills']:
+            print(f"⚠️  Found irrelevant skills: {', '.join(skill_validation['irrelevant_skills'][:3])}")
+        
         # CALCULATE OVERALL SCORE DYNAMICALLY from component scores
-        # Weight: Action Verbs (20%), STAR (25%), ATS (30%), Keywords (25%)
+        # Weight: Action Verbs (15%), STAR (20%), ATS (25%), Keywords (30%), Skill Relevance (10%)
         calculated_overall_score = (
-            action_verb_analysis['score'] * 0.20 +
-            star_analysis['score'] * 0.25 +
-            groq_analysis.get('ats_score', 50) * 0.30 +
-            keyword_analysis['keyword_density'] * 0.25
+            action_verb_analysis['score'] * 0.15 +
+            star_analysis['score'] * 0.20 +
+            groq_analysis.get('ats_score', 50) * 0.25 +
+            keyword_analysis['keyword_density'] * 0.30 +
+            skill_validation['relevance_score'] * 0.10
         )
         
+        # Apply penalty for role mismatch (if many irrelevant skills found)
+        if skill_validation['has_mismatch']:
+            calculated_overall_score *= 0.75  # 25% penalty for significant mismatch
+            print(f"⚠️  Applied 25% penalty for role mismatch. Score: {calculated_overall_score:.1f}%")
+        
         print(f"📊 Calculated overall score: {calculated_overall_score:.1f}%")
-        print(f"   - Action Verbs: {action_verb_analysis['score']:.1f}% (20% weight)")
-        print(f"   - STAR Method: {star_analysis['score']:.1f}% (25% weight)")
-        print(f"   - ATS Score: {groq_analysis.get('ats_score', 50):.1f}% (30% weight)")
-        print(f"   - Keywords: {keyword_analysis['keyword_density']:.1f}% (25% weight)")
+        print(f"   - Action Verbs: {action_verb_analysis['score']:.1f}% (15% weight)")
+        print(f"   - STAR Method: {star_analysis['score']:.1f}% (20% weight)")
+        print(f"   - ATS Score: {groq_analysis.get('ats_score', 50):.1f}% (25% weight)")
+        print(f"   - Keywords: {keyword_analysis['keyword_density']:.1f}% (30% weight)")
+        print(f"   - Skill Relevance: {skill_validation['relevance_score']:.1f}% (10% weight)")
         
         # Combine with specialized analysis
         result = {
@@ -539,6 +635,7 @@ async def analyze_with_groq(resume_text: str, job_role: str, job_description: st
             "action_verb_score": action_verb_analysis['score'],
             "star_methodology_score": star_analysis['score'],
             "keyword_analysis": keyword_analysis,
+            "skill_validation": skill_validation,
             "overall_score": round(calculated_overall_score, 1)  # Use calculated score, not AI's
         }
         
@@ -688,7 +785,7 @@ async def analyze_resume(
                 storage_path = f"{user_id}/{resume.filename}"
                 # Try to upload, but don't fail if storage bucket doesn't exist
                 try:
-                    supabase.storage.from_("analyzer-uploads").upload(storage_path, file_content)
+                    supabase.storage.from_("resume-files").upload(storage_path, file_content)
                     file_path = storage_path
                     print(f"✅ File uploaded to storage: {storage_path}")
                 except Exception as storage_error:

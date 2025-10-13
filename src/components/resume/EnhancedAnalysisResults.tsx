@@ -127,7 +127,7 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
       </Card>
 
       {/* Score Breakdown */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 max-w-full">
         <ScoreCard
           title="Action Verbs"
           score={analysisData.action_verb_score}
@@ -189,8 +189,8 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                   {/* Strong Verbs Found */}
                   <div>
                     <h4 className="font-semibold mb-2">Strong Action Verbs Found:</h4>
-                    <ScrollArea className="h-32">
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <ScrollArea className="h-32 max-w-full overflow-hidden">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-w-full">
                         {analysisData.action_verb_analysis.found_verbs
                           .filter(verb => verb.strength_score >= 4)
                           .map((verb, index) => (
@@ -242,8 +242,8 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                         Scroll to view all →
                       </Badge>
                     </div>
-                    {/* IMPROVED SCROLL AREA */}
-                    <ScrollArea className="h-[500px] pr-4 border rounded-lg bg-muted/20">
+                    {/* IMPROVED SCROLL AREA - Responsive Height */}
+                    <ScrollArea className="h-[300px] md:h-[400px] lg:h-[500px] pr-4 border rounded-lg bg-muted/20 max-w-full overflow-hidden">
                       <div className="space-y-3 p-4">
                         {analysisData.star_analysis.bullet_analysis.map((bullet, index) => (
                           <Card key={index} className="p-4 bg-card hover:shadow-md transition-shadow">
@@ -255,7 +255,7 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                                 >
                                   {Math.round(bullet.star_score * 100)}%
                                 </Badge>
-                                <p className="text-sm leading-relaxed flex-1">{bullet.bullet}</p>
+                                <p className="text-sm leading-relaxed flex-1 break-words max-w-full">{bullet.bullet}</p>
                               </div>
                               
                               {bullet.improvements.length > 0 && (
@@ -265,12 +265,12 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                                     Specific Improvements:
                                   </p>
                                   <ul className="space-y-2">
-                                    {bullet.improvements.map((improvement, idx) => (
-                                      <li key={idx} className="text-sm text-orange-900 dark:text-orange-300 flex items-start gap-2 leading-relaxed">
-                                        <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                        <span>{improvement}</span>
-                                      </li>
-                                    ))}
+                                     {bullet.improvements.map((improvement, idx) => (
+                                       <li key={idx} className="text-sm text-orange-900 dark:text-orange-300 flex items-start gap-2 leading-relaxed">
+                                         <ArrowRight className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                         <span className="break-words max-w-full">{improvement}</span>
+                                       </li>
+                                     ))}
                                   </ul>
                                 </div>
                               )}
@@ -288,7 +288,7 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                       {analysisData.star_analysis.recommendations.map((rec, index) => (
                         <li key={index} className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-300">
                           <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          {rec}
+                          <span className="break-words max-w-full">{rec}</span>
                         </li>
                       ))}
                     </ul>
@@ -370,8 +370,8 @@ export const EnhancedAnalysisResults: React.FC<EnhancedAnalysisResultsProps> = (
                         <CheckCircle2 className="h-5 w-5" />
                         Matching Keywords ({analysisData.keyword_analysis.matching_keywords.length})
                       </h4>
-                      <ScrollArea className="h-48">
-                        <div className="flex flex-wrap gap-2 pr-4">
+                    <ScrollArea className="h-48 max-w-full overflow-hidden">
+                      <div className="flex flex-wrap gap-2 pr-4 max-w-full">
                           {analysisData.keyword_analysis.matching_keywords.map((keyword, index) => (
                             <Badge 
                               key={index} 

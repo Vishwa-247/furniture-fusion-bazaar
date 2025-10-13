@@ -22,6 +22,8 @@ import {
   Upload
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { useResumeCache } from '@/context/ResumeContext';
+import { Trash2 } from 'lucide-react';
 
 interface AnalysisStep {
   id: 'job-role' | 'upload' | 'results';
@@ -42,6 +44,7 @@ interface ProfileResume {
 
 const ResumeAnalyzer = () => {
   const { user } = useAuth();
+  const { cachedResumes, addResume, removeResume } = useResumeCache();
   const [currentStep, setCurrentStep] = useState<'job-role' | 'upload' | 'results'>('job-role');
   const [jobRole, setJobRole] = useState('');
   const [jobDescription, setJobDescription] = useState('');
@@ -99,12 +102,21 @@ const ResumeAnalyzer = () => {
     setCurrentStep('upload');
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setSelectedProfileResume(null);
       setSelectedResumeId(null);
+      
+      // Cache the resume in local storage
+      try {
+        await addResume(file);
+        console.log('✅ Resume cached in local storage');
+      } catch (error) {
+        console.error('Failed to cache resume:', error);
+      }
+      
       toast({
         title: "File Selected!",
         description: `${file.name} is ready for analysis`,
@@ -509,6 +521,71 @@ const ResumeAnalyzer = () => {
                               </div>
                             )}
                           </div>
+                          
+                          {/* Recently Uploaded Resumes from Cache */}
+                          {cachedResumes.length > 0 && (
+                            <div className="mt-6">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold text-foreground">Recently Uploaded</h4>
+                                <Badge variant="secondary" className="text-xs">
+                                  {cachedResumes.length} {cachedResumes.length === 1 ? 'file' : 'files'}
+                                </Badge>
+                              </div>
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {cachedResumes.map((resume) => (
+                                  <div
+                                    key={resume.id}
+                                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-muted hover:border-primary/50 transition-colors group"
+                                  >
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{resume.filename}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {new Date(resume.uploadDate).toLocaleDateString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                          // Convert base64 back to File
+                                          const response = await fetch(resume.fileData);
+                                          const blob = await response.blob();
+                                          const file = new File([blob], resume.filename, { type: blob.type });
+                                          setSelectedFile(file);
+                                          setSelectedResumeId(null);
+                                          toast({
+                                            title: "Resume Loaded",
+                                            description: `Using ${resume.filename}`,
+                                          });
+                                        }}
+                                        className="text-xs h-7"
+                                      >
+                                        Use
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          removeResume(resume.id);
+                                          toast({
+                                            title: "Resume Removed",
+                                            description: "Removed from local cache",
+                                          });
+                                        }}
+                                        className="text-xs h-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           
                           {selectedFile && (
                             <Button 
