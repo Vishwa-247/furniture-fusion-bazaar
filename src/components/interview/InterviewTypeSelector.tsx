@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Code, Users, Calculator, Clock, Target } from "lucide-react";
+import { Code, Users, Calculator, Clock, Target } from "lucide-react";
 import GlassMorphism from "@/components/ui/GlassMorphism";
 
 interface InterviewType {
@@ -46,16 +46,6 @@ const interviewTypes: InterviewType[] = [
     questionCount: 6,
     difficulty: "Easy to Medium", 
     topics: ["Behavioral Questions", "Leadership", "Communication", "Career Goals"]
-  },
-  {
-    id: "mixed",
-    name: "Mixed Interview",
-    description: "Combination of technical, aptitude, and HR questions",
-    icon: <Brain className="h-6 w-6" />,
-    duration: "60-90 mins",
-    questionCount: 12,
-    difficulty: "Easy to Hard",
-    topics: ["All Categories", "Comprehensive Assessment", "Time Management"]
   }
 ];
 

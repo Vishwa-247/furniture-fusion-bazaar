@@ -1,4 +1,5 @@
 import { apiClient } from '../client';
+import { API_GATEWAY_URL } from '@/configs/environment';
 import { MockInterviewType, InterviewQuestionType, InterviewAnalysisType } from '../../types';
 
 export interface InterviewStartRequest {
@@ -17,23 +18,41 @@ export interface InterviewStartResponse {
 
 export const interviewService = {
   async startInterview(request: InterviewStartRequest): Promise<InterviewStartResponse> {
-    const response = await apiClient.post('/interviews/start', request);
-    return response;
+    const response = await fetch(`${API_GATEWAY_URL}/interviews/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to start interview');
+    }
+    
+    return await response.json();
   },
 
   async getInterviews(): Promise<MockInterviewType[]> {
-    const response = await apiClient.get('/interviews');
-    return response.data || [];
+    const response = await fetch(`${API_GATEWAY_URL}/interviews`);
+    const data = await response.json();
+    return data || [];
   },
 
   async getInterview(interviewId: string): Promise<MockInterviewType & { questions: InterviewQuestionType[] }> {
-    const response = await apiClient.get(`/interviews/${interviewId}`);
-    return response.data;
+    const response = await fetch(`${API_GATEWAY_URL}/interviews/${interviewId}`);
+    return await response.json();
   },
 
   async analyzeInterview(interviewId: string, analysisData: any): Promise<InterviewAnalysisType> {
-    const response = await apiClient.post(`/interviews/${interviewId}/analyze`, analysisData);
-    return response.data;
+    const response = await fetch(`${API_GATEWAY_URL}/interviews/${interviewId}/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(analysisData)
+    });
+    return await response.json();
   },
 
   // Legacy methods for compatibility

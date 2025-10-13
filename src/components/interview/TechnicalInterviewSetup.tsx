@@ -184,37 +184,44 @@ const TechnicalInterviewSetup = ({ onSubmit, onBack, isLoading }: TechnicalInter
                 </Card>
               )}
 
-              {resumeData ? (
+              {resumeData && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <FileText className="h-4 w-4" />
-                      Resume Found
+                      Resume on File
                     </CardTitle>
-                    <CardDescription>
-                      We'll use your resume to generate personalized questions
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium">File:</span> {resumeData.filename}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge variant="outline" className="border-green-500 text-green-600">
+                          ✓ Resume Loaded
+                        </Badge>
                       </div>
-                      <div>
-                        <span className="font-medium">Uploaded:</span> {new Date(resumeData.created_at).toLocaleDateString()}
+                      
+                      <div className="text-xs space-y-1">
+                        <div><span className="font-medium">File:</span> {resumeData.filename}</div>
+                        <div><span className="font-medium">Uploaded:</span> {new Date(resumeData.created_at).toLocaleDateString()}</div>
                       </div>
-                      <Badge variant="secondary" className="mt-2">
-                        Questions will be personalized
-                      </Badge>
+
+                      {resumeData.extracted_text && (
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <p className="text-xs font-medium mb-1">Resume Summary:</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {resumeData.extracted_text.substring(0, 150)}...
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-primary font-medium">
+                          ✨ Questions will be personalized based on your resume
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ) : (
-                <Alert>
-                  <AlertDescription>
-                    No resume found. Upload a resume in your profile for personalized interview questions.
-                  </AlertDescription>
-                </Alert>
               )}
             </>
           )}

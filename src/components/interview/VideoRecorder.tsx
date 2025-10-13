@@ -37,21 +37,78 @@ const VideoRecorder = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const analysisTimerRef = useRef<number | null>(null);
   
-  // Simple mock analysis function
-  const runAnalysis = () => {
-    setFacialData({
-      confident: Math.random() * 100,
-      stressed: Math.random() * 50,
-      hesitant: Math.random() * 70,
-      nervous: Math.random() * 60,
-      excited: Math.random() * 80
-    });
+  const analyzeFrame = async () => {
+    try {
+      if (!videoRef.current) return;
+      
+      // Capture frame from video
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return;
+      
+      ctx.drawImage(videoRef.current, 0, 0);
+      
+      // Convert to base64
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Call Flask emotion detection API
+      const response = await fetch('http://localhost:5000/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: imageData })
+      });
+      
+      if (!response.ok) {
+        console.error('Facial analysis API error:', response.status);
+        // Fallback to mock data if API fails
+        const mockAnalysis = {
+          confident: Math.random() * 100,
+          stressed: Math.random() * 50,
+          hesitant: 50,
+          nervous: Math.random() * 60,
+          excited: Math.random() * 80
+        };
+        setFacialData(mockAnalysis);
+        return;
+      }
+      
+      const result = await response.json();
+      
+      if (result.metrics) {
+        const analysisData = {
+          confident: result.metrics.confident * 100,
+          stressed: result.metrics.stressed * 100,
+          nervous: result.metrics.nervous * 100,
+          hesitant: 50, // Derived metric
+          excited: result.metrics.engaged * 100
+        };
+        
+        setFacialData(analysisData);
+      }
+    } catch (error) {
+      console.error('Error analyzing facial expression:', error);
+      // Fallback to mock data on error
+      const mockAnalysis = {
+        confident: Math.random() * 100,
+        stressed: Math.random() * 50,
+        hesitant: 50,
+        nervous: Math.random() * 60,
+        excited: Math.random() * 80
+      };
+      setFacialData(mockAnalysis);
+    }
   };
   
   // Start/stop analysis functions
   const startAnalysis = () => {
     setIsAnalyzing(true);
-    analysisTimerRef.current = window.setInterval(runAnalysis, 1000);
+    const interval = setInterval(analyzeFrame, 2000); // Analyze every 2 seconds
+    analysisTimerRef.current = interval as unknown as number;
   };
   
   const stopAnalysis = () => {

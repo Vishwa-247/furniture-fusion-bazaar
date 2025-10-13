@@ -76,6 +76,34 @@ class InterviewSession(BaseModel):
 # In-memory storage for demo
 interview_sessions = {}
 question_bank = {
+    "aptitude": {
+        "easy": [
+            {"question": "If A is taller than B, and B is taller than C, who is the shortest?", "category": "logical_reasoning", "difficulty": "easy", "expected_points": ["Logic", "Comparison"]},
+            {"question": "A train travels 60 km in 1 hour. How far will it travel in 3 hours at the same speed?", "category": "quantitative", "difficulty": "easy", "expected_points": ["Speed calculation", "Basic math"]},
+            {"question": "Complete the series: 2, 4, 8, 16, __", "category": "pattern", "difficulty": "easy", "expected_points": ["Pattern recognition", "Multiplication"]},
+        ],
+        "medium": [
+            {"question": "In a group of 50 people, 30 like tea, 25 like coffee, and 10 like both. How many like neither?", "category": "logical_reasoning", "difficulty": "medium", "expected_points": ["Set theory", "Venn diagram"]},
+            {"question": "A person buys 5 pens for Rs. 25 and sells them for Rs. 30. What is the profit percentage?", "category": "quantitative", "difficulty": "medium", "expected_points": ["Profit calculation", "Percentage"]},
+        ],
+        "hard": [
+            {"question": "Five people (A, B, C, D, E) are sitting in a row. A is to the left of B but to the right of E. C is to the right of B but to the left of D. Who is in the middle?", "category": "logical_reasoning", "difficulty": "hard", "expected_points": ["Complex logic", "Arrangement"]},
+        ]
+    },
+    "hr": {
+        "easy": [
+            {"question": "Tell me about yourself.", "category": "behavioral", "difficulty": "easy", "expected_points": ["Background", "Experience", "Goals"]},
+            {"question": "Why do you want to work for our company?", "category": "motivation", "difficulty": "easy", "expected_points": ["Research", "Company knowledge", "Career goals"]},
+            {"question": "What are your strengths and weaknesses?", "category": "self_assessment", "difficulty": "easy", "expected_points": ["Self-awareness", "Honesty", "Growth mindset"]},
+        ],
+        "medium": [
+            {"question": "Describe a challenging situation you faced and how you handled it.", "category": "behavioral", "difficulty": "medium", "expected_points": ["STAR method", "Problem-solving", "Learning"]},
+            {"question": "Where do you see yourself in 5 years?", "category": "career_goals", "difficulty": "medium", "expected_points": ["Career planning", "Ambition", "Alignment"]},
+        ],
+        "hard": [
+            {"question": "How do you handle conflict with a team member?", "category": "behavioral", "difficulty": "hard", "expected_points": ["Conflict resolution", "Communication", "Leadership"]},
+        ]
+    },
     "technical": {
         "easy": [
             {

@@ -5,10 +5,11 @@ import { API_GATEWAY_URL } from '@/configs/environment';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
 import Container from "@/components/ui/Container";
-import GenerationModal from "@/components/course/GenerationModal";
+import GlassMorphism from "@/components/ui/GlassMorphism";
 import { cseSuggestions } from "@/data/cseSuggestions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,13 +17,18 @@ const CourseGenerator = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState("");
+  const [generationProgress, setGenerationProgress] = useState({
+    listening: 0,
+    reading: 0,
+    interacting: 0,
+    overall: 0
+  });
+  const [currentStep, setCurrentStep] = useState('');
   const [courseId, setCourseId] = useState<string | null>(null);
 
-  // Subscribe to realtime progress
+  // Subscribe to realtime progress updates
   useEffect(() => {
     if (!courseId) return;
 
@@ -41,16 +47,29 @@ const CourseGenerator = () => {
           const status = payload.new.status;
           const step = payload.new.current_step || "";
 
-          setGenerationProgress(progress);
+          // Map backend steps to learning modes
+          const stepLower = step.toLowerCase();
+          let updatedProgress = { ...generationProgress };
+
+          if (stepLower.includes('podcast') || stepLower.includes('audio') || stepLower.includes('lecture')) {
+            updatedProgress.listening = Math.min(progress, 100);
+          } else if (stepLower.includes('article') || stepLower.includes('chapter') || stepLower.includes('notes')) {
+            updatedProgress.reading = Math.min(progress, 100);
+          } else if (stepLower.includes('quiz') || stepLower.includes('flashcard') || stepLower.includes('game')) {
+            updatedProgress.interacting = Math.min(progress, 100);
+          }
+
+          updatedProgress.overall = progress;
+          setGenerationProgress(updatedProgress);
           setCurrentStep(step);
 
           if (status === 'completed' && progress >= 100) {
+            toast.success("Course ready!");
             setTimeout(() => {
               navigate(`/course/${courseId}`);
-            }, 1500);
+            }, 1000);
           } else if (status === 'failed') {
             toast.error("Course generation failed");
-            setShowModal(false);
             setIsGenerating(false);
           }
         }
@@ -74,10 +93,9 @@ const CourseGenerator = () => {
       return;
     }
 
+    setLoading(true);
     setIsGenerating(true);
-    setShowModal(true);
-    setGenerationProgress(0);
-    setCurrentStep("Initializing...");
+    setCurrentStep('Initializing course generation...');
 
     try {
       const response = await fetch(`${API_GATEWAY_URL}/courses/generate-parallel`, {
@@ -100,11 +118,10 @@ const CourseGenerator = () => {
 
     } catch (error: any) {
       console.error('Generation failed:', error);
-      toast.error("Failed to generate course", {
-        description: error.message || "Please try again"
-      });
-      setShowModal(false);
+      toast.error(error instanceof Error ? error.message : "Failed to generate course");
       setIsGenerating(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,75 +130,140 @@ const CourseGenerator = () => {
   };
 
   return (
-    <>
-      <div className="min-h-screen bg-background">
-        <Container className="py-20">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4 text-foreground">
+    <div className="min-h-screen bg-background">
+      <Container className="py-12">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground/90">
               What do you want to learn?
             </h1>
           </div>
 
-          <div className="max-w-2xl mx-auto mb-12">
-            <div className="flex gap-3">
-              <Input
-                type="text"
-                placeholder="e.g., React Hooks, Machine Learning, Quantum Physics..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
-                className="h-14 text-lg"
-                disabled={isGenerating}
-              />
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating || !topic.trim()}
-                size="lg"
-                className="h-14 px-8"
-              >
-                <Sparkles className="mr-2 h-5 w-5" />
-                Create Course
-              </Button>
-            </div>
-          </div>
-
-          <div className="max-w-4xl mx-auto">
-            <p className="text-center text-muted-foreground mb-6">📚 Suggested CSE Topics:</p>
-            <div className="grid md:grid-cols-3 gap-4">
-              {cseSuggestions.map((suggestion) => (
-                <Card 
-                  key={suggestion.title}
-                  className="p-6 cursor-pointer hover:shadow-lg transition-all hover:border-primary"
-                  onClick={() => handleSuggestionClick(suggestion.title)}
+          <GlassMorphism className="p-8">
+            <div className="space-y-6">
+              <div className="flex gap-3">
+                <Input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., Machine Learning, Web Development, Data Structures..."
+                  className="flex-1 text-lg py-6"
+                  disabled={loading}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && topic.trim()) {
+                      handleGenerate();
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={handleGenerate}
+                  disabled={!topic.trim() || loading}
+                  size="lg"
+                  className="px-8"
                 >
-                  <div className="text-center space-y-3">
-                    <div className="text-4xl">{suggestion.icon}</div>
-                    <h3 className="font-semibold text-lg">{suggestion.title}</h3>
-                    <p className="text-sm text-muted-foreground">{suggestion.description}</p>
-                    <span className="inline-block text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                      {suggestion.category}
-                    </span>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </Container>
-      </div>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  {loading ? "Creating..." : "Create Course"}
+                </Button>
+              </div>
 
-      {showModal && (
-        <GenerationModal
-          topic={topic}
-          progress={generationProgress}
-          currentStep={currentStep}
-          onComplete={() => {
-            if (courseId) {
-              navigate(`/course/${courseId}`);
-            }
-          }}
-        />
-      )}
-    </>
+              {/* CSE Topic Suggestions */}
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">📚 Suggested CSE Topics:</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {cseSuggestions.map((suggestion, index) => (
+                    <Card 
+                      key={index}
+                      className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
+                      onClick={() => handleSuggestionClick(suggestion.title)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-2xl">{suggestion.icon}</span>
+                          <h3 className="font-semibold text-sm">{suggestion.title}</h3>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{suggestion.description}</p>
+                        <Badge variant="outline" className="mt-2 text-xs">
+                          {suggestion.category}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Inline Progress Display */}
+              {isGenerating && (
+                <div className="mt-6 p-6 border rounded-lg bg-muted/30 space-y-4">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold">Creating Your Course</h3>
+                    <p className="text-sm text-muted-foreground">{currentStep}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          🎧 Learn by Listening
+                        </span>
+                        <span className="text-muted-foreground">{Math.round(generationProgress.listening)}%</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${generationProgress.listening}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          📚 Learn by Reading
+                        </span>
+                        <span className="text-muted-foreground">{Math.round(generationProgress.reading)}%</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${generationProgress.reading}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          🎮 Learn by Interacting
+                        </span>
+                        <span className="text-muted-foreground">{Math.round(generationProgress.interacting)}%</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${generationProgress.interacting}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center justify-between text-sm font-semibold">
+                        <span>Overall Progress</span>
+                        <span>{Math.round(generationProgress.overall)}%</span>
+                      </div>
+                      <div className="h-3 bg-secondary rounded-full overflow-hidden mt-2">
+                        <div 
+                          className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
+                          style={{ width: `${generationProgress.overall}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </GlassMorphism>
+        </div>
+      </Container>
+    </div>
   );
 };
 
