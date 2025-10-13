@@ -213,19 +213,20 @@ async def generate_in_parallel(course_id: str, topic: str, user_id: str):
         await mark_job_failed(course_id, str(e))
 
 async def generate_outline(topic: str) -> dict:
-    """Generate course outline with basic → intermediate → advanced structure"""
+    """Generate course outline - 4 chapters for speed"""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}",
             json={
                 "contents": [{
                     "parts": [{
-                        "text": f"""Create a structured learning path for: "{topic}"
+                        "text": f"""Create a concise course outline for: "{topic}"
 
-Structure chapters from BASIC to ADVANCED (6 chapters total):
-- Chapters 1-2: Fundamentals (Beginner level) - Core basics, definitions, simple examples
-- Chapters 3-4: Intermediate Concepts - Practical applications, common patterns
-- Chapters 5-6: Advanced Topics - Complex scenarios, best practices, optimization
+Generate EXACTLY 4 chapters:
+- Chapter 1: Basic (fundamentals)
+- Chapter 2: Intermediate (core concepts) 
+- Chapter 3: Intermediate (applications)
+- Chapter 4: Advanced (complex topics)
 
 Return JSON:
 {{
@@ -233,9 +234,9 @@ Return JSON:
     {{
       "title": "string",
       "level": "basic|intermediate|advanced",
-      "objectives": ["string"],
-      "keyConcepts": ["string"],
-      "estimatedMinutes": number
+      "objectives": ["obj1", "obj2"],
+      "keyConcepts": ["concept1", "concept2"],
+      "estimatedMinutes": 10
     }}
   ]
 }}"""
@@ -262,34 +263,19 @@ async def generate_chapters(course_id: str, topic: str, outline: dict) -> list:
         for i, chapter in enumerate(outline["chapters"]):
             level = chapter.get('level', 'intermediate')
             
-            prompt = f"""Write comprehensive chapter content for:
+            prompt = f"""Write concise chapter for:
 
 Topic: {topic}
 Chapter: {chapter['title']}
 Level: {level}
 
-Include:
-1. **Introduction** (2 paragraphs explaining the concept)
-2. **Key Concepts** (detailed explanations with examples)
-3. **Code Examples** (if technical topic):
-   - 2-3 practical code examples
-   - Use proper markdown code blocks with language tags
-   - Add comments explaining each part
-   - Progress from simple to complex
+Requirements (300-400 words):
+1. Intro (1-2 paragraphs)
+2. Key concepts with 1-2 SHORT code examples if technical
+3. 1 comparison table if relevant
+4. Summary
 
-4. **Comparison Tables** (when comparing concepts):
-   | Feature | Option A | Option B |
-   |---------|----------|----------|
-   | Detail  | Value    | Value    |
-
-5. **Visual Aids** (describe helpful diagrams):
-   ![Description of what image/diagram would show](placeholder)
-   Example: ![Flowchart showing the process flow with decision points](placeholder)
-
-6. **Real-World Examples** (practical applications)
-7. **Summary** (key takeaways)
-
-Format: Use markdown, 500-700 words. Write clearly for {level} level learners."""
+Use markdown. Keep it brief and practical."""
 
             response = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}",

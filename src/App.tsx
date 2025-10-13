@@ -18,7 +18,7 @@ import NotFound from "@/pages/NotFound";
 import FutureIntegrations from "@/pages/FutureIntegrations";
 import Courses from "@/pages/Courses";
 import CourseGenerator from "@/pages/CourseGenerator";
-import CourseDetail from "@/pages/CourseDetail";
+import CourseDetailNew from "@/pages/CourseDetailNew";
 import Settings from "@/pages/Settings";
 import { InterviewProvider } from "@/context/InterviewContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -59,7 +59,7 @@ const App = () => (
             <Route path="/course/:id" element={
               <Layout>
                 <ProtectedRoute>
-                  <CourseDetail />
+                  <CourseDetailNew />
                 </ProtectedRoute>
               </Layout>
             } />
