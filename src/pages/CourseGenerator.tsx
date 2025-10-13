@@ -1,179 +1,128 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Container from "@/components/ui/Container";
-import CourseForm from "@/components/course/CourseForm";
-import HowItWorks from "@/components/course/HowItWorks";
-import LoadingOverlay from "@/components/ui/LoadingOverlay";
-import ContentGenerationStatus from "@/components/course/ContentGenerationStatus";
 import { useAuth } from '@/hooks/useAuth';
-import { toast as sonnerToast } from "sonner";
-import { useCourseGeneration } from "@/hooks/useCourseGeneration";
-import { CourseType } from "@/types";
-import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { courseService } from "@/api/services/courseService";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2 } from "lucide-react";
+import Container from "@/components/ui/Container";
 
 const CourseGenerator = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [generationInBackground, setGenerationInBackground] = useState(false);
-  const [generationStartTime, setGenerationStartTime] = useState<Date | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [recentCourses, setRecentCourses] = useState<CourseType[]>([
-    // Dummy recent courses that always show up
-    {
-      id: "dummy-course-1",
-      title: "React Hooks Masterclass",
-      purpose: "practice",
-      difficulty: "intermediate",
-      created_at: new Date().toISOString(),
-      user_id: "user-123",
-      content: { status: 'complete' }
-    },
-    {
-      id: "dummy-course-2",
-      title: "Python for Data Science",
-      purpose: "job_interview",
-      difficulty: "beginner",
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      user_id: "user-123",
-      content: { status: 'complete' }
-    },
-    {
-      id: "dummy-course-3",
-      title: "Advanced TypeScript",
-      purpose: "other",
-      difficulty: "advanced",
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      user_id: "user-123",
-      content: { status: 'complete' }
-    }
-  ]);
-    
-  const handleSubmit = async (courseName: string, purpose: CourseType['purpose'], difficulty: CourseType['difficulty'], customPrompt?: string) => {
+  const [topic, setTopic] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
     if (!user) {
+      toast.error("Please sign in to generate courses");
       navigate('/auth');
       return;
     }
-    
-    setIsLoading(true);
-    setError(null);
-    
+
+    if (!topic.trim()) {
+      toast.error("Please enter a topic");
+      return;
+    }
+
+    setIsGenerating(true);
+
     try {
-      const courseId = await courseService.generateCourse(courseName, purpose, difficulty, user.id);
-      setGenerationInBackground(true);
-      setGenerationStartTime(new Date());
-      navigate(`/course/${courseId}`);
-    } catch (error) {
-      console.error('Course generation failed:', error);
-      setError('Failed to generate course. Please try again.');
-      toast({
-        title: "Error",
-        description: "Failed to generate course. Please try again.",
-        variant: "destructive",
+      const { data, error } = await supabase.functions.invoke('generate-course-parallel', {
+        body: { topic: topic.trim(), userId: user.id }
+      });
+
+      if (error) throw error;
+
+      toast.success("Course generation started!", {
+        description: "Your course will be ready in ~40 seconds"
+      });
+
+      navigate(`/course/${data.courseId}`);
+
+    } catch (error: any) {
+      console.error('Generation failed:', error);
+      toast.error("Failed to generate course", {
+        description: error.message || "Please try again"
       });
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   };
 
   return (
-    <Container className="py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Course Generator</h1>
-        <p className="text-muted-foreground max-w-2xl">
-          Create customized courses on any topic with our AI-powered course generator.
-          Only notes will be generated initially - you can add flashcards, MCQs, and Q&A later.
-        </p>
-      </div>
-
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <ContentGenerationStatus
-        isGenerating={generationInBackground}
-        title="Generating your course notes..."
-        startTime={generationStartTime}
-        progress={progress}
-        estimatedTime={180} // 3 minutes in seconds
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <CourseForm onSubmit={handleSubmit} isLoading={isLoading} />
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Container className="py-20">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            What do you want to learn?
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            Generate a complete AI-powered course in 40 seconds
+          </p>
         </div>
-        
-        <div>
-          <HowItWorks generationInBackground={generationInBackground} />
-        </div>
-      </div>
 
-      {/* Display recent courses */}
-      {recentCourses.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-xl font-bold mb-6">Recent Courses</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentCourses.map((course) => (
-              <Card key={course.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">{course.title}</CardTitle>
-                  <CardDescription className="flex justify-between">
-                    <span>{course.difficulty}</span>
-                    <span>{new Date(course.created_at).toLocaleDateString()}</span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="mt-2">
-                    {course.content && typeof course.content === 'object' && course.content.status === 'generating' ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center text-amber-500 text-sm mb-2">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          <span>Generating...</span>
-                        </div>
-                        <Progress value={40} className="h-1.5" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center text-green-500 text-sm mb-2">
-                        <span>Ready</span>
-                      </div>
-                    )}
-                    <button 
-                      onClick={() => navigate(`/course/${course.id}`)}
-                      className="w-full mt-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
-                    >
-                      View Course
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+        <div className="max-w-2xl mx-auto mb-16">
+          <div className="flex gap-3">
+            <Input
+              type="text"
+              placeholder="e.g., React Hooks, Machine Learning, Quantum Physics..."
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()}
+              className="h-14 text-lg"
+              disabled={isGenerating}
+            />
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating || !topic.trim()}
+              size="lg"
+              className="h-14 px-8"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Create Course
+                </>
+              )}
+            </Button>
           </div>
         </div>
-      )}
 
-      {isLoading && (
-        <LoadingOverlay 
-          isLoading={true}
-          message="Starting Course Generation"
-          subMessage="We're preparing your course notes. This will take about 3 minutes. Once started, you can navigate away and we'll notify you when it's ready."
-          minimal={true}
-          autoDismiss={3000} // Auto dismiss after 3 seconds
-        />
-      )}
-    </Container>
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <FeatureCard
+            icon="🎙️"
+            title="Learn by Listening"
+            description="AI-generated podcasts and lectures"
+          />
+          <FeatureCard
+            icon="📚"
+            title="Learn by Reading"
+            description="Deep dive articles and key takeaways"
+          />
+          <FeatureCard
+            icon="🎮"
+            title="Learn by Playing"
+            description="Interactive quizzes and word games"
+          />
+        </div>
+      </Container>
+    </div>
   );
 };
+
+const FeatureCard = ({ icon, title, description }: { icon: string; title: string; description: string }) => (
+  <div className="bg-card p-6 rounded-xl shadow-sm border border-border text-center hover:shadow-md transition-shadow">
+    <div className="text-4xl mb-3">{icon}</div>
+    <h3 className="font-semibold text-lg mb-2">{title}</h3>
+    <p className="text-muted-foreground text-sm">{description}</p>
+  </div>
+);
 
 export default CourseGenerator;
