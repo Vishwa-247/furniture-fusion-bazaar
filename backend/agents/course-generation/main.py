@@ -213,16 +213,32 @@ async def generate_in_parallel(course_id: str, topic: str, user_id: str):
         await mark_job_failed(course_id, str(e))
 
 async def generate_outline(topic: str) -> dict:
-    """Generate course outline using Gemini"""
+    """Generate course outline with basic → intermediate → advanced structure"""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}",
             json={
                 "contents": [{
                     "parts": [{
-                        "text": f"""Create a course outline for: "{topic}".
-Include 3-5 chapters with objectives and key concepts.
-Format as JSON: {{"chapters": [{{"title": "string", "objectives": ["string"], "keyConcepts": ["string"], "estimatedMinutes": number}}]}}"""
+                        "text": f"""Create a structured learning path for: "{topic}"
+
+Structure chapters from BASIC to ADVANCED (6 chapters total):
+- Chapters 1-2: Fundamentals (Beginner level) - Core basics, definitions, simple examples
+- Chapters 3-4: Intermediate Concepts - Practical applications, common patterns
+- Chapters 5-6: Advanced Topics - Complex scenarios, best practices, optimization
+
+Return JSON:
+{{
+  "chapters": [
+    {{
+      "title": "string",
+      "level": "basic|intermediate|advanced",
+      "objectives": ["string"],
+      "keyConcepts": ["string"],
+      "estimatedMinutes": number
+    }}
+  ]
+}}"""
                     }]
                 }]
             }
@@ -239,17 +255,48 @@ Format as JSON: {{"chapters": [{{"title": "string", "objectives": ["string"], "k
         return json.loads(text)
 
 async def generate_chapters(course_id: str, topic: str, outline: dict) -> list:
-    """Generate chapter content"""
+    """Generate chapter content with code examples, tables, and images"""
     chapters = []
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         for i, chapter in enumerate(outline["chapters"]):
+            level = chapter.get('level', 'intermediate')
+            
+            prompt = f"""Write comprehensive chapter content for:
+
+Topic: {topic}
+Chapter: {chapter['title']}
+Level: {level}
+
+Include:
+1. **Introduction** (2 paragraphs explaining the concept)
+2. **Key Concepts** (detailed explanations with examples)
+3. **Code Examples** (if technical topic):
+   - 2-3 practical code examples
+   - Use proper markdown code blocks with language tags
+   - Add comments explaining each part
+   - Progress from simple to complex
+
+4. **Comparison Tables** (when comparing concepts):
+   | Feature | Option A | Option B |
+   |---------|----------|----------|
+   | Detail  | Value    | Value    |
+
+5. **Visual Aids** (describe helpful diagrams):
+   ![Description of what image/diagram would show](placeholder)
+   Example: ![Flowchart showing the process flow with decision points](placeholder)
+
+6. **Real-World Examples** (practical applications)
+7. **Summary** (key takeaways)
+
+Format: Use markdown, 500-700 words. Write clearly for {level} level learners."""
+
             response = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={GEMINI_API_KEY}",
                 json={
                     "contents": [{
                         "parts": [{
-                            "text": f"Write 300-500 word chapter on: {chapter['title']} for topic: {topic}. Include introduction, key concepts, examples, and summary."
+                            "text": prompt
                         }]
                     }]
                 }

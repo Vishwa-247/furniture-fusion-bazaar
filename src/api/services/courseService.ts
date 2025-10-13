@@ -205,79 +205,14 @@ export const courseService = {
     }
   },
 
-  async generateContent(
-    courseId: string,
-    contentType: 'flashcards' | 'mcqs' | 'qnas' | 'notebook' | 'resources',
-    topic: string,
-    options?: {
-      difficulty?: 'easy' | 'medium' | 'hard';
-      count?: number;
-      chapterContent?: string;
-    }
-  ): Promise<any> {
-    const { data, error } = await supabase.functions.invoke('generate-course-content', {
-      body: {
-        courseId,
-        contentType,
-        topic,
-        difficulty: options?.difficulty || 'medium',
-        count: options?.count || 5,
-        chapterContent: options?.chapterContent
-      }
-    });
-
-    if (error) {
-      throw new Error(`Failed to generate content: ${error.message}`);
-    }
-
-    return data;
-  },
-
-  async generateCourse(
-    courseName: string, 
-    purpose: CourseType['purpose'], 
-    difficulty: CourseType['difficulty'],
-    userId: string,
-    geminiApiKey?: string
-  ): Promise<string> {
-    const { data, error } = await supabase.functions.invoke('course-generator-agent', {
-      body: {
-        courseName,
-        purpose,
-        difficulty,
-        userId,
-        geminiApiKey
-      }
-    });
-
-    if (error) {
-      throw new Error(`Failed to start course generation: ${error.message}`);
-    }
-
-    return data.courseId;
-  },
-
-  async getCourseContent(courseId: string): Promise<CourseType> {
+  async getCourseContent(courseId: string) {
     return this.getCourse(courseId);
   },
 
-  async updateCourseProgress(courseId: string, progress: any): Promise<void> {
-    // Legacy method - use trackProgress instead
-    console.warn('updateCourseProgress is deprecated, use trackProgress instead');
-  },
-
-  async generateAdditionalContent(
-    courseId: string,
-    contentType: 'flashcards' | 'mcqs' | 'qna',
-    topic: string,
-    difficulty?: string
-  ): Promise<boolean> {
-    try {
-      await this.generateContent(courseId, contentType, topic, { difficulty: difficulty as any });
-      return true;
-    } catch (error) {
-      console.error('Failed to generate additional content:', error);
-      return false;
-    }
+  async updateCourseProgress(courseId: string, progress: any) {
+    return this.trackProgress({
+      courseId,
+      ...progress
+    });
   }
 };

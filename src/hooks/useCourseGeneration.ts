@@ -1,18 +1,12 @@
+import { useState, useEffect } from 'react';
+import { toast as sonnerToast } from 'sonner';
+import { CourseType } from '@/types';
+import { API_GATEWAY_URL } from '@/configs/environment';
+import { supabase } from '@/integrations/supabase/client';
 
-import { useState, useEffect } from "react";
-import { courseService } from "@/api/services/courseService";
-import { toast as sonnerToast } from "sonner";
-import { CourseType } from "@/types";
-
-// Define an interface for the content structure
 interface CourseContent {
-  status?: string;
-  message?: string;
-  lastUpdated?: string;
-  parsedContent?: {
-    summary?: string;
-    chapters?: any[];
-  };
+  summary: string;
+  chapters: any[];
   [key: string]: any;
 }
 
@@ -23,195 +17,92 @@ export const useCourseGeneration = () => {
   const [progress, setProgress] = useState(0);
   const [generationStartTime, setGenerationStartTime] = useState<Date | null>(null);
 
+  // Subscribe to real-time progress updates
   useEffect(() => {
-    let intervalId: number | null = null;
-    
-    if (generationInBackground && courseGenerationId) {
-      console.log("Setting up interval to check course generation status for ID:", courseGenerationId);
-      
-      // Show loader for 3 minutes (180000 ms) with gradual progress updates
-      const startTime = Date.now();
-      const totalDuration = 180000; // 3 minutes in milliseconds
-      
-      intervalId = window.setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        
-        // Calculate progress as a percentage of the 3 minutes
-        const newProgress = Math.min(Math.round((elapsed / totalDuration) * 100), 99);
-        
-        setProgress(newProgress);
-        
-        // If 3 minutes have passed, complete the process
-        if (elapsed >= totalDuration) {
-          // Course is complete
-          setProgress(100);
-          
-          if (intervalId) clearInterval(intervalId);
-          setGenerationInBackground(false);
-          
-          // Notify user of completion
-          sonnerToast.success('Course Generation Complete', {
-            description: `Your course has been generated successfully.`,
-            action: {
-              label: 'View Course',
-              onClick: () => window.location.href = `/course/${courseGenerationId}`,
-            },
-          });
-        }
-      }, 1000); // Update every second for smoother progress
-    }
-    
-    return () => {
-      if (intervalId) {
-        console.log("Clearing interval for course generation check");
-        clearInterval(intervalId);
-      }
-    };
-  }, [generationInBackground, courseGenerationId]);
+    if (!courseGenerationId) return;
 
-  // Create a function to start course generation (always succeeds with dummy data)
+    const channel = supabase
+      .channel('course-progress')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'course_generation_jobs',
+          filter: `course_id=eq.${courseGenerationId}`
+        },
+        (payload) => {
+          setProgress(payload.new.progress_percentage || 0);
+          
+          if (payload.new.status === 'completed') {
+            setGenerationInBackground(false);
+            setProgress(100);
+            sonnerToast.success('Course Generated!', {
+              description: 'Your course is ready to view',
+            });
+          } else if (payload.new.status === 'failed') {
+            setGenerationInBackground(false);
+            setError(payload.new.error_message || 'Generation failed');
+            sonnerToast.error('Course generation failed', {
+              description: payload.new.error_message || 'Please try again',
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [courseGenerationId]);
+
   const startCourseGeneration = async (
-    courseName: string, 
-    purpose: CourseType['purpose'], 
+    courseName: string,
+    purpose: CourseType['purpose'],
     difficulty: CourseType['difficulty'],
     userId: string
-  ) => {
+  ): Promise<string> => {
     try {
-      console.log("Starting course generation for:", courseName);
-      
-      // Reset progress and set start time
-      setProgress(0);
-      setGenerationStartTime(new Date());
-      
-      // Create a random course ID
-      const courseId = crypto.randomUUID();
-      
-      // Start the generation process
-      setCourseGenerationId(courseId);
-      setGenerationInBackground(true);
       setError(null);
+      setGenerationInBackground(true);
+      setGenerationStartTime(new Date());
+      setProgress(5);
+
+      sonnerToast.info('Starting Course Generation', {
+        description: 'Your course will be ready in ~40 seconds',
+      });
+
+      // Call real backend API
+      const response = await fetch(`${API_GATEWAY_URL}/courses/generate-parallel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: courseName,
+          userId: userId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate course');
+      }
+
+      const data = await response.json();
+      const courseId = data.courseId;
       
-      // Simulate course creation in database
-      console.log(`Created course with ID: ${courseId}`);
-      
-      // Process with static data after the 3-minute loading period completes
-      setTimeout(() => {
-        processStaticCourseGeneration(
-          courseName,
-          purpose,
-          difficulty as "beginner" | "intermediate" | "advanced",
-          courseId
-        );
-      }, 180000); // 3 minutes
+      setCourseGenerationId(courseId);
       
       return courseId;
     } catch (error: any) {
-      console.error("Error in startCourseGeneration:", error);
-      setProgress(0);
-      
-      // Never fail - use dummy data instead
-      const courseId = crypto.randomUUID();
-      setTimeout(() => {
-        processStaticCourseGeneration(
-          courseName,
-          purpose,
-          difficulty as "beginner" | "intermediate" | "advanced",
-          courseId
-        );
-      }, 180000); // Still wait 3 minutes even in error case
-      
-      return courseId;
+      setError(error.message || 'Failed to start course generation');
+      setGenerationInBackground(false);
+      sonnerToast.error('Generation failed', {
+        description: error.message || 'Please try again',
+      });
+      throw error;
     }
-  };
-
-  // Process generation with static data
-  const processStaticCourseGeneration = async (
-    topic: string,
-    purpose: CourseType['purpose'],
-    difficulty: "beginner" | "intermediate" | "advanced",
-    courseId: string
-  ) => {
-    try {
-      setProgress(100);
-      
-      // Generate dummy data for the course
-      const staticCourse = {
-          title: topic,
-          difficulty: difficulty,
-          summary: `This is a comprehensive course on ${topic} for ${purpose} level.`,
-          content: {
-            parsedContent: {
-              summary: `Welcome to ${topic} for ${difficulty} learners!`,
-              chapters: [
-                { 
-                  title: "Introduction to " + topic, 
-                  content: "This chapter introduces the basic concepts of " + topic + ".",
-                  sections: [
-                    { title: "What is " + topic, content: "A detailed explanation of " + topic + " and its importance." },
-                    { title: "History of " + topic, content: "How " + topic + " evolved over time." }
-                  ]
-                },
-                { 
-                  title: "Core Concepts", 
-                  content: "Understanding the fundamental principles.",
-                  sections: [
-                    { title: "Key Principle 1", content: "Detailed explanation of the first principle." },
-                    { title: "Key Principle 2", content: "Detailed explanation of the second principle." }
-                  ]
-                },
-                { 
-                  title: "Advanced Topics", 
-                  content: "Exploring advanced concepts in " + topic,
-                  sections: [
-                    { title: "Advanced Concept 1", content: "Deep dive into first advanced topic." },
-                    { title: "Advanced Concept 2", content: "Deep dive into second advanced topic." }
-                  ]
-                }
-              ]
-            },
-            flashcards: [
-              { question: "What is " + topic + "?", answer: "A comprehensive definition of " + topic },
-              { question: "What are the core principles of " + topic + "?", answer: "The fundamental principles include..." }
-            ],
-            mcqs: [
-              {
-                question: "Which of the following best describes " + topic + "?",
-                options: ["Option A", "Option B", "Option C", "Option D"],
-                correctAnswer: "Option A"
-              },
-              {
-                question: "What is a key benefit of " + topic + "?",
-                options: ["Benefit 1", "Benefit 2", "Benefit 3", "Benefit 4"],
-                correctAnswer: "Benefit 2"
-              }
-            ],
-            qnas: [
-              { question: "How can I apply " + topic + " in real life?", answer: "You can apply it by..." },
-              { question: "What are common mistakes in " + topic + "?", answer: "Common mistakes include..." }
-            ]
-          }
-        };
-      
-      console.log(`Course ${courseId} updated with static/dummy content`);
-      
-    } catch (error: any) {
-      console.error(`Error in static course generation for course ${courseId}:`, error);
-      
-      // Never fail - create dummy data
-      console.log(`Created dummy data for course ${courseId}`);
-    }
-  };
-
-  // Generate additional content from static data
-  const generateAdditionalContent = async (
-    courseId: string,
-    contentType: 'flashcards' | 'mcqs' | 'qna',
-    topic: string,
-    difficulty?: string
-  ) => {
-    console.log(`Generating ${contentType} for course ${courseId} on topic ${topic}`);
-    // Always succeed with dummy data
-    return true;
   };
 
   return {
@@ -219,9 +110,8 @@ export const useCourseGeneration = () => {
     courseGenerationId,
     error,
     progress,
+    generationStartTime,
     setError,
     startCourseGeneration,
-    generateAdditionalContent,
-    generationStartTime
   };
 };
