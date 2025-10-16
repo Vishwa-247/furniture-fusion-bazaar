@@ -34,6 +34,28 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  // Real-time listeners for courses and interviews
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen for course updates
+    const courseChannel = supabase
+      .channel('course-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'courses',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        loadUserData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(courseChannel);
+    };
+  }, [user]);
+
   const loadUserData = async () => {
     try {
       // Load user profile
@@ -344,6 +366,17 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {courseStats.inProgress > 0 && (
+                      <div className="p-3 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-1">
+                          <Activity className="h-4 w-4 animate-pulse" />
+                          <span className="text-sm font-medium">Course Generating...</span>
+                        </div>
+                        <p className="text-xs text-amber-600 dark:text-amber-500">
+                          Your course is being created. This usually takes 40-60 seconds.
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-primary">{courseStats.total}</div>

@@ -5,8 +5,13 @@ import numpy as np
 import base64
 import logging
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Add utils to path
+sys.path.append(str(Path(__file__).parent))
+from utils.face_tracker import AdvancedFaceTracker
 
 # Load environment variables from backend root
 backend_root = Path(__file__).parent.parent.parent
@@ -30,6 +35,9 @@ CORS(app, resources={
 
 # Emotion labels for FER-2013 dataset
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
+
+# Initialize face tracker
+face_tracker = AdvancedFaceTracker()
 
 # TODO: Load your trained FER-2013 model here
 # model = load_model('path/to/your/fer2013_model.h5')
@@ -104,6 +112,9 @@ def analyze_emotion():
                 'face_detected': False
             })
         
+        # Advanced face tracking
+        tracking_data = face_tracker.analyze_frame(img)
+        
         # Get largest face
         x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
         face = gray[y:y+h, x:x+w]
@@ -142,7 +153,7 @@ def analyze_emotion():
         emotion = emotion_labels[emotion_idx]
         confidence = float(predictions[emotion_idx])
         
-        # Map emotions to interview-relevant metrics
+        # Combine emotion data with tracking data
         result = {
             'emotion': emotion,
             'confidence': confidence,
@@ -157,6 +168,13 @@ def analyze_emotion():
             'all_emotions': {
                 emotion_labels[i]: float(predictions[i]) 
                 for i in range(len(emotion_labels))
+            },
+            'tracking': tracking_data if tracking_data else {
+                'blink_count': 0,
+                'head_pose': {'pitch': 0, 'yaw': 0, 'roll': 0, 'looking_at_camera': True},
+                'gaze': {'horizontal': 'center', 'vertical': 'center'},
+                'looking_at_camera': True,
+                'face_detected': True
             }
         }
         

@@ -2,12 +2,12 @@
 echo 🚀 Starting All StudyMate Backend Services
 echo ==========================================
 
-cd /d "%~dp0\.."
+cd /d "%~dp0\..\.."
 
 REM Check if virtual environment exists
 if not exist "venv\Scripts\activate.bat" (
     echo ❌ Virtual environment not found!
-    echo Please run: setup.bat
+    echo Please run: scripts\setup\setup.bat
     pause
     exit /b 1
 )
@@ -27,22 +27,22 @@ echo ✅ Starting services...
 echo.
 
 REM Start each service in a new window
-start "API Gateway" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd api-gateway && python main.py"
+start "API Gateway" cmd /k "cd /d %~dp0\..\..\api-gateway && ..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
-start "Profile Service" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\profile-service && python main.py"
+start "Profile Service" cmd /k "cd /d %~dp0\..\..\agents\profile-service && ..\..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
-start "Resume Analyzer" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\resume-analyzer && python main.py"
+start "Resume Analyzer" cmd /k "cd /d %~dp0\..\..\agents\resume-analyzer && ..\..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
-start "Course Generation" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\course-generation && python main.py"
+start "Course Generation" cmd /k "cd /d %~dp0\..\..\agents\course-generation && ..\..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
-start "Interview Coach" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\interview-coach && python main.py"
+start "Interview Coach" cmd /k "cd /d %~dp0\..\..\agents\interview-coach && ..\..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
-start "Emotion Detection" cmd /k "cd /d %~dp0\.. && venv\Scripts\activate && cd agents\emotion-detection && python main.py"
+start "Emotion Detection" cmd /k "cd /d %~dp0\..\..\agents\emotion-detection && ..\..\venv\Scripts\activate && python main.py"
 timeout /t 2 /nobreak >nul
 
 echo.

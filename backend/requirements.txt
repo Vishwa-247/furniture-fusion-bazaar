@@ -27,6 +27,7 @@ google-generativeai==0.3.2
 # ============ Computer Vision (for Emotion Detection) ============
 opencv-python==4.8.1.78
 numpy==1.24.3
+scipy==1.11.4
 
 # ============ File Processing ============
 PyPDF2==3.0.1
