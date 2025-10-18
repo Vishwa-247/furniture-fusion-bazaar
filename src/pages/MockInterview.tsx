@@ -4,8 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import InterviewTypeSelector from "@/components/interview/InterviewTypeSelector";
 import TechnicalInterviewSetup from "@/components/interview/TechnicalInterviewSetup";
-import InterviewSetup from "@/components/interview/InterviewSetup";
+import UnifiedInterviewSetup from "@/components/interview/UnifiedInterviewSetup";
 import VideoRecorder from "@/components/interview/VideoRecorder";
+import MetricsPanel from "@/components/interview/MetricsPanel";
 import Container from "@/components/ui/Container";
 import { ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,25 +97,31 @@ const MockInterview = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingComplete, setRecordingComplete] = useState(false);
   const [interviewId, setInterviewId] = useState<string>("mock-001");
+  const [metricsData, setMetricsData] = useState({
+    facialData: { confident: 0, stressed: 0, nervous: 0 },
+    behaviorData: { blink_count: 0, looking_at_camera: false, head_pose: { pitch: 0, yaw: 0, roll: 0 } },
+    communicationData: { filler_word_count: 0, words_per_minute: 0, clarity_score: 0 }
+  });
 
-  // Static mock interviews data
-  const recentInterviews = [
-    { id: "mock-001", job_role: "Frontend Developer", tech_stack: "React, TypeScript", experience: "3-5", created_at: new Date().toISOString(), user_id: "mock-user", completed: true },
-    { id: "mock-002", job_role: "Full Stack Engineer", tech_stack: "Node.js, Express, MongoDB", experience: "1-3", created_at: new Date().toISOString(), user_id: "mock-user", completed: false },
-    { id: "mock-003", job_role: "Data Scientist", tech_stack: "Python, TensorFlow, PyTorch", experience: "5+", created_at: new Date().toISOString(), user_id: "mock-user", completed: true },
-  ];
 
   const handleTypeSelection = (type: string) => {
     setSelectedInterviewType(type);
     setStage(InterviewStage.Setup);
   };
-    const handleInterviewSetup = (role: string, techStack: string, experience: string) => {
+  const handleInterviewSetup = (dataOrRole: any, techStack?: string, experience?: string) => {
+    // Support both old 3-param format and new single object format
+    let data = dataOrRole;
+    if (typeof dataOrRole === 'string' && techStack && experience) {
+      // Old format: handleInterviewSetup(role, techStack, experience)
+      data = { role: dataOrRole, techStack, experience };
+    }
     
     // Generate a mock interview ID
     const mockId = `mock-${Date.now()}`;
     setInterviewId(mockId);
     
-    // Get questions based on role
+    // Get questions based on role or interview type
+    const role = data.role || selectedInterviewType;
     const jobType = role.includes("Frontend") ? "Frontend Developer" :
                     role.includes("Backend") ? "Backend Developer" :
                     role.includes("Full") ? "Full Stack Developer" :
@@ -376,6 +383,14 @@ const MockInterview = () => {
                 isRecording={isRecording}
                 startRecording={startRecording}
                 stopRecording={stopRecording}
+                onMetricsUpdate={setMetricsData}
+              />
+              
+              <MetricsPanel 
+                facialData={metricsData.facialData}
+                behaviorData={metricsData.behaviorData}
+                communicationData={metricsData.communicationData}
+                isVisible={isRecording}
               />
               
               <div className="mt-6 flex justify-center space-x-4">
@@ -406,54 +421,7 @@ const MockInterview = () => {
   };
 
   const renderRecentInterviews = () => {
-    return (
-      <div className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Recent Mock Interviews</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recentInterviews.map((interview) => (
-            <Card key={interview.id} className="overflow-hidden">
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{interview.job_role}</CardTitle>
-                    <CardDescription>{new Date(interview.created_at).toLocaleDateString()}</CardDescription>
-                  </div>
-                  <div className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    interview.completed ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
-                  }`}>
-                    {interview.completed ? "Completed" : "In Progress"}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  {interview.tech_stack.split(',').map((tech, i) => (
-                    <div key={i} className="px-2 py-1 text-xs font-medium rounded-full bg-secondary">
-                      {tech.trim()}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={() => {
-                      if (interview.completed) {
-                        navigate(`/interview-result/${interview.id}`);
-                      } else {
-                        resumeInterview(interview);
-                      }
-                    }}
-                  >
-                    {interview.completed ? "View Results" : "Resume Interview"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
+    return null; // Removed dummy data
   };
 
   return (
@@ -470,27 +438,25 @@ const MockInterview = () => {
       {stage === InterviewStage.TypeSelection && (
         <div className="space-y-8">
           <InterviewTypeSelector onSelectType={handleTypeSelection} selectedType={selectedInterviewType} />
-          {renderRecentInterviews()}
         </div>
       )}
       
       {stage === InterviewStage.Setup && (
-            <div className="space-y-8">
-              {selectedInterviewType === 'technical' ? (
-                <TechnicalInterviewSetup 
-                  onSubmit={handleInterviewSetup} 
-                  onBack={() => setStage(InterviewStage.TypeSelection)}
-                  isLoading={isLoading} 
-                />
-              ) : (
-                <InterviewSetup 
-                  onSubmit={handleInterviewSetup} 
-                  isLoading={isLoading} 
-                />
-              )}
-              {selectedInterviewType !== 'technical' && renderRecentInterviews()}
-            </div>
+        <div className="space-y-8">
+          {selectedInterviewType === 'technical' ? (
+            <TechnicalInterviewSetup 
+              onSubmit={handleInterviewSetup} 
+              onBack={() => setStage(InterviewStage.TypeSelection)}
+              isLoading={isLoading} 
+            />
+          ) : (
+            <UnifiedInterviewSetup 
+              type={selectedInterviewType as 'aptitude' | 'hr'}
+              onSubmit={handleInterviewSetup} 
+            />
           )}
+        </div>
+      )}
           
           {stage !== InterviewStage.TypeSelection && stage !== InterviewStage.Setup && renderStage()}
     </Container>

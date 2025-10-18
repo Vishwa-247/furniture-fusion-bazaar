@@ -8,6 +8,7 @@ interface VideoRecorderProps {
   isRecording: boolean;
   startRecording: () => void;
   stopRecording: () => void;
+  onMetricsUpdate?: (metrics: any) => void;
 }
 
 const VideoRecorder = ({
@@ -15,6 +16,7 @@ const VideoRecorder = ({
   isRecording,
   startRecording,
   stopRecording,
+  onMetricsUpdate,
 }: VideoRecorderProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -26,13 +28,21 @@ const VideoRecorder = ({
   const [error, setError] = useState<string>("");
   const [countdown, setCountdown] = useState<number | null>(null);
   
-  // Simple facial analysis state without conflicting video stream management
+  // Facial analysis with behavioral metrics
   const [facialData, setFacialData] = useState({
     confident: 0,
     stressed: 0, 
-    hesitant: 0,
-    nervous: 0,
-    excited: 0
+    nervous: 0
+  });
+  const [behaviorData, setBehaviorData] = useState({
+    blink_count: 0,
+    looking_at_camera: false,
+    head_pose: { pitch: 0, yaw: 0, roll: 0 }
+  });
+  const [communicationData, setCommunicationData] = useState({
+    filler_word_count: 0,
+    words_per_minute: 0,
+    clarity_score: 0
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const analysisTimerRef = useRef<number | null>(null);
@@ -79,28 +89,54 @@ const VideoRecorder = ({
       
       const result = await response.json();
       
-      if (result.metrics) {
+      if (result.metrics && result.face_tracking) {
         const analysisData = {
           confident: result.metrics.confident * 100,
           stressed: result.metrics.stressed * 100,
-          nervous: result.metrics.nervous * 100,
-          hesitant: 50, // Derived metric
-          excited: result.metrics.engaged * 100
+          nervous: result.metrics.nervous * 100
+        };
+        
+        const behavior = {
+          blink_count: result.face_tracking.blink_count || 0,
+          looking_at_camera: result.face_tracking.looking_at_camera || false,
+          head_pose: result.face_tracking.head_pose || { pitch: 0, yaw: 0, roll: 0 }
         };
         
         setFacialData(analysisData);
+        setBehaviorData(behavior);
+        
+        // Update parent component with metrics
+        if (onMetricsUpdate) {
+          onMetricsUpdate({
+            facialData: analysisData,
+            behaviorData: behavior,
+            communicationData
+          });
+        }
       }
     } catch (error) {
       console.error('Error analyzing facial expression:', error);
       // Fallback to mock data on error
       const mockAnalysis = {
-        confident: Math.random() * 100,
-        stressed: Math.random() * 50,
-        hesitant: 50,
-        nervous: Math.random() * 60,
-        excited: Math.random() * 80
+        confident: Math.random() * 80 + 20,
+        stressed: Math.random() * 30,
+        nervous: Math.random() * 30
+      };
+      const mockBehavior = {
+        blink_count: Math.floor(Math.random() * 20) + 10,
+        looking_at_camera: Math.random() > 0.3,
+        head_pose: { pitch: 0, yaw: 0, roll: 0 }
       };
       setFacialData(mockAnalysis);
+      setBehaviorData(mockBehavior);
+      
+      if (onMetricsUpdate) {
+        onMetricsUpdate({
+          facialData: mockAnalysis,
+          behaviorData: mockBehavior,
+          communicationData
+        });
+      }
     }
   };
   
@@ -234,21 +270,9 @@ const VideoRecorder = ({
     stopRecording();
   };
   
-  // Display facial analysis data if available and recording
+  // Display is now handled by MetricsPanel component
   const renderFacialAnalysis = () => {
-    if (!isRecording || !isAnalyzing) return null;
-    
-    return (
-      <div className="absolute bottom-4 left-4 bg-black/60 rounded-lg p-2 text-xs text-white">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <div>Confidence: {facialData.confident.toFixed(1)}%</div>
-          <div>Stress: {facialData.stressed.toFixed(1)}%</div>
-          <div>Hesitation: {facialData.hesitant.toFixed(1)}%</div>
-          <div>Nervousness: {facialData.nervous.toFixed(1)}%</div>
-          <div>Engagement: {facialData.excited.toFixed(1)}%</div>
-        </div>
-      </div>
-    );
+    return null;
   };
   
   return (
